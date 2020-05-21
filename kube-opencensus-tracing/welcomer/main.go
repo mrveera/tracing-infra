@@ -5,14 +5,19 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/http/httptrace"
 	"os"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/opentracing-contrib/go-gin/ginhttp"
+	"github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go/log"
+	"github.com/uber/jaeger-client-go"
+	"github.com/uber/jaeger-client-go/config"
 
-	"contrib.go.opencensus.io/exporter/ocagent"
 	"go.opencensus.io/trace"
 
 	"go.opencensus.io/plugin/ochttp"
@@ -24,27 +29,42 @@ var (
 
 func main() {
 	if guestrackerhost == "" {
-		guestrackerhost = "localhost"
+		guestrackerhost = "localhost:8081"
 	}
 	fmt.Println("GUEST_TRACKER_HOST =", guestrackerhost)
 
-	ocagentHost := "oc-collector.tracing:55678"
-	oce, _ := ocagent.NewExporter(
-		ocagent.WithInsecure(),
-		ocagent.WithReconnectionPeriod(10*time.Second),
-		ocagent.WithAddress(ocagentHost),
-		ocagent.WithServiceName("welcomer"))
+	collectorEndpointURI := "http://localhost:14268/api/traces"
 
-	trace.RegisterExporter(oce)
-	trace.ApplyConfig(trace.Config{DefaultSampler: trace.AlwaysSample()})
+	cfg := &config.Configuration{
+		Sampler: &config.SamplerConfig{
+			Type:  "const",
+			Param: 1,
+		},
+		Reporter: &config.ReporterConfig{
+			LogSpans:          true,
+			CollectorEndpoint: collectorEndpointURI,
+		},
+	}
+	tracer, closer, err := cfg.New(
+		"welcomer",
+		config.Logger(jaeger.StdLogger),
+	)
+
+	opentracing.SetGlobalTracer(tracer)
+	if err != nil {
+		log.Fatal("error in jaeger init", err)
+	}
+
+	defer closer.Close()
 
 	r := gin.Default()
-
+	r.Use(ginhttp.Middleware(opentracing.GlobalTracer()))
 	r.GET("/welcome", func(c *gin.Context) {
 		//_, span := trace.StartSpan(c, "/welcome")
 		// http_server_route=/welcome tag is set
-		ochttp.SetRoute(c.Request.Context(), "/welcome")
+		// ochttp.SetRoute(c.Request.Context(), "/welcome")
 
+		log.Println("Logss.... please come in j")
 		//defer span.End()
 		fmt.Println(c.Request.Header)
 		fmt.Println(c.Request.Host)
@@ -53,19 +73,7 @@ func main() {
 	})
 	//r.Run() // listen and serve on 0.0.0.0:8080 (for windows "localhost:8080")
 	http.ListenAndServe( // nolint: errcheck
-		"0.0.0.0:8080",
-		&ochttp.Handler{
-			Handler: r,
-			GetStartOptions: func(r *http.Request) trace.StartOptions {
-				startOptions := trace.StartOptions{}
-
-				if r.URL.Path == "/metrics" {
-					startOptions.Sampler = trace.NeverSample()
-				}
-
-				return startOptions
-			},
-		})
+		"0.0.0.0:8080", r)
 }
 
 func welcomeHandler(c *gin.Context) {
