@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"go.opencensus.io/plugin/ochttp"
 	"time"
 
@@ -25,14 +24,17 @@ func main() {
 
 	r := gin.Default()
 	r.POST("/track-guest", func(c *gin.Context) {
-		fmt.Println(c.Request.Header)
-		fmt.Println(c.Request.Host)
-		fmt.Println("Tracking the user")
 		context := c.Request.Context()
+		ochttp.SetRoute(context, "/track-guest")
+
 		span := trace.FromContext(context)
 		defer span.End()
-		span.Annotate([]trace.Attribute{trace.StringAttribute("annotated", "guesttrackervalue")}, "guesttracker annotation check")
-		span.AddAttributes(trace.StringAttribute("span-add-attribute", "guesttrackervalue"))
+		span.Annotate(
+			[]trace.Attribute{
+				trace.StringAttribute("CallName", "prateek3"),
+			},
+			"guesttracker annotation check")
+
 		var json LoginData
 		if err := c.ShouldBindJSON(&json); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
