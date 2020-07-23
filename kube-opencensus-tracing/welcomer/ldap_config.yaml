@@ -1,0 +1,19 @@
+web: 0.0.0.0:5555
+path: /
+servers:
+- ldap://ldap.forumsys.com:389
+auth:
+  bindDN: ou=scientists,dc=example,dc=com
+  bindPW: password
+user:
+  baseDN: ou=scientists,dc=example,dc=com
+  filter: "(cn={0})"
+  requiredGroups:
+  - scientists
+group:
+  baseDN: ou=scientists,dc=example,dc=com
+  groupAttr: cn
+  filter: "(member={0})"
+timeout:
+  success: 24h
+  wrong: 5m

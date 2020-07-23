@@ -92,6 +92,10 @@ spec:
       - backend:
           serviceName: guesttracker
           servicePort: 8081
+  tls:
+  - hosts:
+    - welcomer.loreans.com
+    secretName: welcomer-ssl
 ---
 apiVersion: v1
 kind: ConfigMap

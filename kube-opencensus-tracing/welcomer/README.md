@@ -10,3 +10,5 @@ stern welcomer --container welcomer --all-namespaces
 docker build -t=welcomer:1.x <br/>
 change deployment.yaml to point to new version of welcomer 1.x<br/>
 kubectl delete deployments nginx-ingress -n hackerspace
+
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout welcomer.key -out welcomer.crt -subj "/CN=welcomer.loreans.com/O=welcomer.loreans.com"
